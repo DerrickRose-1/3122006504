@@ -1,33 +1,29 @@
-import pandas as pd
-import jieba#用于中文的分词
-import numpy as np#用于方便进行计算
-import string
-import sys
-
-import unittest
-
+import unittest  # 导入单元测试框架
 
 def add_numb(a, b):
+    # 加法函数
     return a + b
 
-
 def division_numb(a, b):
+    # 除法函数，处理除以零的情况
+    if b == 0:
+        raise ValueError("不能除以零。")
     return a / b
 
+class TestMathOperations(unittest.TestCase):
+    # 单元测试类
+    def test_add(self):
+        # 测试加法
+        test_cases = [(1, 1, 2), (2, 0, 2)]
+        for a, b, expected in test_cases:
+            self.assertEqual(add_numb(a, b), expected)
 
-class Test(unittest.TestCase):
-    def test_add_1(self):
-        self.assertEqual(add_numb(1, 1), 2)
-
-    def test_add_2(self):
-        self.assertEqual(add_numb(2, 0), 1)
-
-    def test_division_1(self):
+    def test_division(self):
+        # 测试除法
         self.assertEqual(division_numb(2, 1), 2)
-
-    def test_division_2(self):
-        self.assertEqual(division_numb(2, 0), 2)
-
+        with self.assertRaises(ValueError):
+            division_numb(2, 0)  # 验证除以零的异常
 
 if __name__ == "__main__":
-    main()
+    # 运行单元测试
+    unittest.main()
