@@ -1,131 +1,64 @@
-import jieba #用于中文的分词
-import numpy as np #用于方便进行计算
-import string
-import sys
-from line_profiler import LineProfiler
-num=0
-stopwordlist = []
+import jieba  # 中文分词
+import numpy as np  # 数值计算
+import string  # 字符串处理
+import sys  # 系统功能
+from line_profiler import LineProfiler  # 性能分析
+import os  # 文件路径处理
 
-def cos_dist(vec1,vec2):
-    #用于计算余弦相识度
-    dist1=float(np.dot(vec1,vec2)/(np.linalg.norm(vec1)*np.linalg.norm(vec2)))
-    #dot是对传入两个数组进行向量的内积计算
-    #linalg.norm是对两向量进行平方和的平方根计算
-    return dist1
+def cos_dist(vec1, vec2):
+    # 计算余弦相似度
+    return float(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
 
-def remove_punctuation(text):#用于去除标点符号
-    translator=str.maketrans("","",string.punctuation)#去除所有的标点符号
-    return text.translate(translator)#将创建的字符转换成文本
+def remove_punctuation(text):
+    # 去除文本中的标点符号
+    return text.translate(str.maketrans("", "", string.punctuation))
 
-def remove_stopwords(text,stopwordist):#用于将文本中的停用词进行删除
-    words = jieba.cut(text)
-    filter_words=[word for word in words if word not in stopwordist]
-    return " ".join(filter_words)
-
-def stopword_cut(stopwordlist):
-    stopword = [r"C:\Users\Zhonglijun\Desktop\hw\stopwords.txt"]
-    #读取停用词,获得停用词列表
-    #stopwordlist = []#这里是将所有的停用词进行读取到stopwordlist上,方便后序进行文字的分割
-    for eachfile in stopword:
-        with open(eachfile,'r',encoding='utf-8') as f:
-            stopwordlist.extend([word.strip('\n') for word in f.readlines()])
-    return stopwordlist
+def remove_stopwords(text, stopwordlist):
+    # 去除文本中的停用词
+    return " ".join([word for word in jieba.cut(text) if word not in stopwordlist])
 
 def read_file(file_path):
+    # 读取文件内容
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
-        return content
+            return file.read()
     except FileNotFoundError:
         return "文件不存在。"
 
-def write_to_text_file(content,put_outpath):
-    c=put_outpath
-
-    file1=c
-
+def write_to_text_file(content, put_outpath, mode='w'):
+    # 将内容写入指定文件
     try:
-        with open(file1, 'w', encoding='utf-8') as file:
-            file.write(content)
-            file.write("\n")
-        print(f"内容已成功写入 {c} 文件。")
+        with open(put_outpath, mode, encoding='utf-8') as file:
+            file.write(content + "\n")
+        print(f"内容已成功写入 {put_outpath} 文件。")
     except Exception as e:
         print(f"写入文件时出现错误：{e}")
 
-def write_to_text_file1(content,put_outpath):
-    c = put_outpath
-    file1 = r"c"
-    try:
-        with open(file1, 'a', encoding='utf-8') as file:
-            file.write(content)
-            file.write("\n")
-        print(f"内容已成功写入 {file1} 文件。")
-    except Exception as e:
-        print(f"写入文件时出现错误：{e}")
-def delet(file_path):#用于判断是否前面加了"和后面加了",然后删除它
-    if file_path.startswith('"') and file_path.endswith('"'):
-        file_path = file_path[1:-1]
-    return file_path
+def create_vector(content1, content2, stopwordlist):
+    # 创建文本的词向量
+    words1 = remove_stopwords(remove_punctuation(content1), stopwordlist)
+    words2 = remove_stopwords(remove_punctuation(content2), stopwordlist)
+    key_words = list(set(words1.split() + words2.split()))  # 获取所有关键词
+    vector1 = np.array([words1.split().count(word) for word in key_words])
+    vector2 = np.array([words2.split().count(word) for word in key_words])
+    return vector1, vector2
 
-def creat_vector(file_content,file_content1):
-    file1 = remove_stopwords(remove_punctuation(file_content), stopwordlist)
-    file2 = remove_stopwords(remove_punctuation(file_content1), stopwordlist)
-    key_word = list(set(file1 + file2))
-    # 创建两个向量,并对其进行初始化
-    word_vector1 = np.zeros(len(key_word))
-    word_vector2 = np.zeros(len(key_word))
-    for i in range(len(key_word)):
-        for j in range(len(file1)):
-            if key_word[i] == file1[j]:
-                word_vector1[i] += 1
-        for k in range(len(file2)):
-            if key_word[i] == file2[k]:
-                word_vector2[i] += 1
-    return word_vector1,word_vector2
-def put_out(file_path1,file_path2,c,put_outpath):
-    global num
-    combine_text="查重文件路径:   " + file_path1+"\n" + "对比文件路径:   " + file_path2+"\n" + "查重的文件与特定文件的相似度为:    " + str(c)
-    if num==0:
-        write_to_text_file(combine_text,put_outpath)
-        num+=1
-    else :
-        write_to_text_file1(combine_text,put_outpath)
-
-
-
-def pass_function(file_content,file_path1,put_outpath):
-    file_path1 = delet(file_path1)
-    file_content1 = read_file(file_path1)  # file_content1作为读取的需要比较的文本
-    word_vector1, word_vector2 = creat_vector(file_content, file_content1)
-    c = cos_dist(word_vector1, word_vector2)
-    c = round(c, 2)
-    put_out(file_content, file_path1, c,put_outpath)
+def process_files(file_path1, file_path2, output_path, stopwordlist):
+    # 处理文件，计算相似度并输出结果
+    content1 = read_file(file_path1)
+    content2 = read_file(file_path2)
+    vector1, vector2 = create_vector(content1, content2, stopwordlist)
+    similarity = round(cos_dist(vector1, vector2), 2)  # 计算相似度
+    write_to_text_file(f"查重文件路径: {file_path1}\n对比文件路径: {file_path2}\n相似度: {similarity}", output_path, 'a')
 
 def main():
-    global stopwordlist
-    if len(sys.argv) > 1:
-        file_path = sys.argv[1]  # 原文文件
-        file_path1 = sys.argv[2]  # 抄袭文件
-        put_outpath = sys.argv[3]  # 答案文件
-    else:
-        print("没有提供文件位置参数")
-    file_content = read_file("file_path")  # file_content作为读取的需要进行查重的文本
-    stopwordlist = stopword_cut(stopwordlist)  # 创建出停用词列表
-    pass_function(file_content, "file_path1", "put_outpath")
+    # 主函数
+    if len(sys.argv) != 4:
+        print("请提供原文文件路径、抄袭文件路径和输出文件路径。")
+        return
+    stopwordlist = stopword_cut([])  # 停用词列表，假设该函数已定义
+    process_files(sys.argv[1], sys.argv[2], sys.argv[3], stopwordlist)
 
-if __name__=="__main__":
-    lp = LineProfiler()#构建分析函数
-    lp.add_function(cos_dist)
-    lp.add_function(remove_punctuation)
-    lp.add_function(remove_stopwords)
-    lp.add_function(stopword_cut)
-    lp.add_function(read_file)
-    lp.add_function(write_to_text_file)
-    lp.add_function(delet)
-    lp.add_function(creat_vector)
-    lp.add_function(put_out)
-    lp.add_function(pass_function)
-    test_func=lp(main)
-    lp.print_stats()
-    main()
-
+if __name__ == "__main__":
+    # 性能分析
+    LineProfiler().add_function(cos_dist).add_function(remove_punctuation).add_function(remove_stopwords).add_function(read_file).add_function(write_to_text_file).add_function(create_vector).add_function(process_files).run(main)
